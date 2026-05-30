@@ -139,6 +139,37 @@ export async function generateMorningProposalIdeas(
   }
 }
 
+export async function runMorningProposalWorkflow(params: {
+  client: Client<true>;
+  guildId: string;
+  channelId: string;
+  proposerDiscordId: string;
+  runKey: string;
+}) {
+  const ideas = await generateMorningProposalIdeas(params.guildId);
+
+  if (ideas.proposals.length === 0) {
+    return {
+      ideas,
+      created: [],
+    };
+  }
+
+  const created = await postMorningProposals({
+    client: params.client,
+    guildId: params.guildId,
+    channelId: params.channelId,
+    proposerDiscordId: params.proposerDiscordId,
+    runKey: params.runKey,
+    ideas: ideas.proposals,
+  });
+
+  return {
+    ideas,
+    created,
+  };
+}
+
 export async function postMorningProposals(params: {
   client: Client<true>;
   guildId: string;

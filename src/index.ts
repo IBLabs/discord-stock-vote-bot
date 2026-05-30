@@ -14,6 +14,7 @@ import {
   getPortfolioSnapshot,
 } from "./services/portfolioService.js";
 import { postProposalToChannel } from "./services/proposalService.js";
+import { runMorningProposalWorkflow } from "./services/morningProposalService.js";
 import { startMorningProposalWorker } from "./workers/morningProposals.js";
 import { startCloseExpiredProposalsWorker } from "./workers/closeExpiredProposals.js";
 
@@ -112,6 +113,45 @@ client.on(Events.InteractionCreate, async (interaction) => {
           embeds: [embed],
           ephemeral: true,
         });
+
+        return;
+      }
+
+      if (interaction.commandName === "morning-proposals") {
+        if (!interaction.guildId) {
+          await interaction.reply({
+            content: "אפשר להשתמש בפקודה הזו רק בשרת.",
+            ephemeral: true,
+          });
+
+          return;
+        }
+
+        await interaction.deferReply({ ephemeral: true });
+
+        const result = await runMorningProposalWorkflow({
+          client: client as Client<true>,
+          guildId: interaction.guildId,
+          channelId: env.PROPOSALS_CHANNEL_ID,
+          proposerDiscordId: client.user?.id ?? interaction.user.id,
+          runKey: `manual:${interaction.id}`,
+        });
+
+        if (result.ideas.proposals.length === 0) {
+          await interaction.editReply(
+            result.ideas.skippedReason
+              ? `לא נוצרו הצעות חדשות. ${result.ideas.skippedReason}`
+              : "לא נוצרו הצעות חדשות.",
+          );
+
+          return;
+        }
+
+        const symbols = result.created.map((proposal) => proposal.symbol);
+
+        await interaction.editReply(
+          `נוצרו ופורסמו ${result.created.length} הצעות חדשות ב- <#${env.PROPOSALS_CHANNEL_ID}>: ${symbols.join(", ")}`,
+        );
 
         return;
       }

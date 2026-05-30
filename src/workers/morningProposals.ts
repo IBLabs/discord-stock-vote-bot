@@ -1,10 +1,7 @@
 import { type Client } from "discord.js";
 import { prisma } from "../db.js";
 import { env } from "../env.js";
-import {
-  generateMorningProposalIdeas,
-  postMorningProposals,
-} from "../services/morningProposalService.js";
+import { runMorningProposalWorkflow } from "../services/morningProposalService.js";
 
 const MORNING_JOB_KEY = "morning-proposals";
 const CHECK_INTERVAL_MS = 60_000;
@@ -67,9 +64,15 @@ export function startMorningProposalWorker(client: Client<true>) {
         },
       });
 
-      const ideas = await generateMorningProposalIdeas(env.DISCORD_GUILD_ID);
+      const result = await runMorningProposalWorkflow({
+        client,
+        guildId: env.DISCORD_GUILD_ID,
+        channelId: env.PROPOSALS_CHANNEL_ID,
+        proposerDiscordId: client.user.id,
+        runKey,
+      });
 
-      if (ideas.proposals.length === 0) {
+      if (result.ideas.proposals.length === 0) {
         await prisma.scheduledJobRun.update({
           where: {
             jobKey_runKey: {
@@ -80,21 +83,12 @@ export function startMorningProposalWorker(client: Client<true>) {
           data: {
             status: "COMPLETED",
             completedAt: new Date(),
-            error: ideas.skippedReason ?? null,
+            error: result.ideas.skippedReason ?? null,
           },
         });
 
         return;
       }
-
-      await postMorningProposals({
-        client,
-        guildId: env.DISCORD_GUILD_ID,
-        channelId: env.PROPOSALS_CHANNEL_ID,
-        proposerDiscordId: client.user.id,
-        runKey,
-        ideas: ideas.proposals,
-      });
 
       await prisma.scheduledJobRun.update({
         where: {

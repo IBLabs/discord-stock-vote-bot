@@ -46,6 +46,11 @@ const commands = [
     .setName("portfolio")
     .setDescription("View the simulated portfolio")
     .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName("morning-proposals")
+    .setDescription("Generate and post morning proposals now")
+    .toJSON(),
 ];
 
 const rest = new REST({ version: "10" }).setToken(env.DISCORD_TOKEN);
