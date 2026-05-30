@@ -85,11 +85,9 @@ export function formatProposalReasoningLines(
 
   if (!normalized) return [];
 
-  const lines = normalized.split("\n").slice(0, 3);
+  const compact = normalized.replace(/\s+/g, " ");
 
-  if (lines.length === 0) return [];
-
-  return ["סיבה", ...lines];
+  return ["סיבה", compact];
 }
 
 export function buildProposalEmbed(proposal: ProposalView) {
