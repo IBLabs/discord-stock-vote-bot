@@ -44,7 +44,7 @@ const morningProposalResponseFormat = {
   name: "morning_proposals",
   strict: true,
   description:
-    "Morning simulated stock proposals with short rationale. Choose 1 to 3 BUY proposals only.",
+    "Morning simulated stock proposals with short rationale in Hebrew. Choose 1 to 3 BUY proposals only.",
   schema: {
     type: "object",
     additionalProperties: false,
@@ -101,7 +101,7 @@ export async function generateMorningProposalIdeas(
       {
         role: "system",
         content:
-          "You create simulated stock proposals for a Discord investment club. Focus on the provided portfolio and recent news. Only return BUY proposals. Keep each reasoning to 3 lines or less. Return only structured output.",
+          "You create simulated stock proposals for a Discord investment club. Focus on the provided portfolio and recent news. Only return BUY proposals. Write every reasoning in Hebrew only. Keep each reasoning to 3 lines or less. Return only structured output.",
       },
       {
         role: "user",
@@ -313,7 +313,7 @@ function buildMorningPrompt(
     companyNews,
     "",
     "Return JSON with 1 to 3 BUY proposals only.",
-    "Each proposal must include symbol, action, amount, and a short reasoning no longer than 3 lines.",
+    "Each proposal must include symbol, action, amount, and a short reasoning in Hebrew no longer than 3 lines.",
     "Keep the amounts realistic and within the available cash.",
     "Use symbols that are relevant to the news and portfolio. Prefer symbols with clear news catalysts.",
     "Do not include markdown or extra commentary.",

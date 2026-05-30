@@ -225,6 +225,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         symbol: proposal.symbol,
         amount: proposal.amount,
         proposerDiscordId: proposal.proposerDiscordId,
+        reasoning: proposal.reasoning,
         status: "OPEN",
         counts: await getVoteCounts(proposal.id),
       });
