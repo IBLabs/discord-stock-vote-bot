@@ -99,7 +99,7 @@ export function buildProposalEmbed(proposal: ProposalView) {
 
   const summary = `${proposal.symbol} | ${proposal.action.toUpperCase()} | $${proposal.amount.toLocaleString()}`;
   const closesAtUnixSeconds = Math.floor(proposal.closesAt.getTime() / 1000);
-  const timer = `נסגר\n<t:${closesAtUnixSeconds}:R>`;
+  const timer = `🕒 נסגר <t:${closesAtUnixSeconds}:R>`;
   const votes = `✅ ${proposal.counts.yes}   ❌ ${proposal.counts.no}   🤷 ${proposal.counts.abstain}`;
 
   return new EmbedBuilder()
