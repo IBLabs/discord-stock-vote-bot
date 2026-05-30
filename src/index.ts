@@ -73,6 +73,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           amount,
           proposerDiscordId: interaction.user.id,
           reasoning,
+          closesAt,
           status: "OPEN",
           counts: emptyVoteCounts(),
         };
@@ -264,6 +265,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         amount: proposal.amount,
         proposerDiscordId: proposal.proposerDiscordId,
         reasoning: proposal.reasoning,
+        closesAt: proposal.closesAt,
         status: "OPEN",
         counts: await getVoteCounts(proposal.id),
       });

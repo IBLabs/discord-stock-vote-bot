@@ -19,6 +19,7 @@ export type ProposalView = {
   amount: number;
   proposerDiscordId: string;
   reasoning?: string | null | undefined;
+  closesAt: Date;
   status: ProposalStatus;
   counts: VoteCounts;
   executionSummary?: string | undefined;
@@ -97,6 +98,8 @@ export function buildProposalEmbed(proposal: ProposalView) {
       : `תוצאה: **${proposal.status === "PASSED" ? "עבר" : "נכשל"}**`;
 
   const summary = `${proposal.symbol} | ${proposal.action.toUpperCase()} | $${proposal.amount.toLocaleString()}`;
+  const closesAtUnixSeconds = Math.floor(proposal.closesAt.getTime() / 1000);
+  const timer = `נסגר\n<t:${closesAtUnixSeconds}:R>`;
   const votes = `✅ ${proposal.counts.yes}   ❌ ${proposal.counts.no}   🤷 ${proposal.counts.abstain}`;
 
   return new EmbedBuilder()
@@ -114,6 +117,8 @@ export function buildProposalEmbed(proposal: ProposalView) {
           : []),
         "",
         "_תיק השקעות מדומה. אין עסקאות אמיתיות. לא ייעוץ פיננסי._",
+        "",
+        timer,
       ].join("\n"),
     );
 }

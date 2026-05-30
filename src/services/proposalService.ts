@@ -80,6 +80,7 @@ export async function closeExpiredProposals(client: Client<true>) {
       amount: proposal.amount,
       proposerDiscordId: proposal.proposerDiscordId,
       reasoning: proposal.reasoning,
+      closesAt: proposal.closesAt,
       status: nextStatus,
       counts,
       executionSummary,
@@ -98,6 +99,7 @@ async function updateProposalMessage(
     amount: number;
     proposerDiscordId: string;
     reasoning: string | null;
+    closesAt: Date;
     status: Exclude<ProposalStatus, "OPEN">;
     counts: Awaited<ReturnType<typeof getVoteCounts>>;
     executionSummary: string | undefined;
@@ -122,6 +124,7 @@ async function updateProposalMessage(
         amount: proposal.amount,
         proposerDiscordId: proposal.proposerDiscordId,
         reasoning: proposal.reasoning,
+        closesAt: proposal.closesAt,
         status: proposal.status,
         counts: proposal.counts,
         executionSummary: proposal.executionSummary,

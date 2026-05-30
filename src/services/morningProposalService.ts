@@ -236,6 +236,7 @@ export async function postMorningProposals(params: {
         amount: proposal.amount,
         proposerDiscordId: proposal.proposerDiscordId,
         reasoning: proposal.reasoning,
+        closesAt: proposal.closesAt,
         status: "OPEN",
         counts: emptyVoteCounts(),
       },
