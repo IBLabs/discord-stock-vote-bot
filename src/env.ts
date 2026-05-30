@@ -13,6 +13,9 @@ const envSchema = z.object({
   MORNING_PROPOSALS_TIMEZONE: z.string().min(1).default("America/New_York"),
   MORNING_PROPOSALS_HOUR: z.coerce.number().int().min(0).max(23).default(8),
   MORNING_PROPOSALS_MINUTE: z.coerce.number().int().min(0).max(59).default(0),
+  NIGHT_PROPOSALS_TIMEZONE: z.string().min(1).default("Asia/Jerusalem"),
+  NIGHT_PROPOSALS_HOUR: z.coerce.number().int().min(0).max(23).default(22),
+  NIGHT_PROPOSALS_MINUTE: z.coerce.number().int().min(0).max(59).default(0),
 });
 
 export const env = envSchema.parse(process.env);
