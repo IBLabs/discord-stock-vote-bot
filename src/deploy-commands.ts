@@ -1,4 +1,9 @@
-import { REST, Routes, SlashCommandBuilder } from "discord.js";
+import {
+  PermissionFlagsBits,
+  REST,
+  Routes,
+  SlashCommandBuilder,
+} from "discord.js";
 import { env } from "./env.js";
 
 const commands = [
@@ -10,6 +15,7 @@ const commands = [
   new SlashCommandBuilder()
     .setName("propose")
     .setDescription("Create a fake stock trade proposal")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((option) =>
       option
         .setName("action")
@@ -61,6 +67,7 @@ const commands = [
   new SlashCommandBuilder()
     .setName("morning-proposals")
     .setDescription("Generate and post morning proposals now")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON(),
 ];
 
