@@ -89,41 +89,28 @@ export function formatProposalReasoningLines(
 
   if (lines.length === 0) return [];
 
-  return [`סיבה: ${lines[0]}`, ...lines.slice(1, 3)];
+  return ["סיבה", ...lines];
 }
 
 export function buildProposalEmbed(proposal: ProposalView) {
   const votingStatus =
     proposal.status === "OPEN"
-      ? "ההצבעה פתוחה."
-      : `ההצבעה נסגרה. תוצאה: **${proposal.status === "PASSED" ? "עבר" : "נכשל"}**`;
+      ? undefined
+      : `תוצאה: **${proposal.status === "PASSED" ? "עבר" : "נכשל"}**`;
 
-  const statusLabel =
-    proposal.status === "OPEN"
-      ? "פתוח"
-      : proposal.status === "PASSED"
-        ? "עבר"
-        : "נכשל";
+  const summary = `${proposal.symbol} | ${proposal.action.toUpperCase()} | $${proposal.amount.toLocaleString()}`;
+  const votes = `✅ ${proposal.counts.yes}   ❌ ${proposal.counts.no}   🤷 ${proposal.counts.abstain}`;
 
   return new EmbedBuilder()
-    .setTitle(`הצעה — ${proposal.action.toUpperCase()} ${proposal.symbol}`)
+    .setTitle(`<@${proposal.proposerDiscordId}>`)
     .setDescription(
       [
-        `הוצע על ידי: <@${proposal.proposerDiscordId}>`,
-        "",
-        `פעולה: **${proposal.action.toUpperCase()}**`,
-        `סימול: **${proposal.symbol}**`,
-        `סכום: **$${proposal.amount.toLocaleString()} מדומה**`,
+        summary,
         "",
         ...formatProposalReasoningLines(proposal.reasoning),
         ...(proposal.reasoning ? [""] : []),
-        `סטטוס: **${statusLabel}**`,
-        votingStatus,
-        "",
-        `קולות:`,
-        `✅ בעד: **${proposal.counts.yes}**`,
-        `❌ נגד: **${proposal.counts.no}**`,
-        `🤷 נמנע: **${proposal.counts.abstain}**`,
+        ...(votingStatus ? [votingStatus, ""] : []),
+        votes,
         ...(proposal.executionSummary
           ? ["", `ביצוע: ${proposal.executionSummary}`]
           : []),
@@ -137,19 +124,19 @@ export function buildVoteButtons(proposalId: string, disabled = false) {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`vote:${proposalId}:yes`)
-      .setLabel("בעד")
+      .setLabel("✅")
       .setStyle(ButtonStyle.Success)
       .setDisabled(disabled),
 
     new ButtonBuilder()
       .setCustomId(`vote:${proposalId}:no`)
-      .setLabel("נגד")
+      .setLabel("❌")
       .setStyle(ButtonStyle.Danger)
       .setDisabled(disabled),
 
     new ButtonBuilder()
       .setCustomId(`vote:${proposalId}:abstain`)
-      .setLabel("נמנע")
+      .setLabel("🤷")
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(disabled),
   );
