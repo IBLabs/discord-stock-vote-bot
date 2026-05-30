@@ -64,30 +64,38 @@ export function decideProposalStatus(
 export function buildProposalEmbed(proposal: ProposalView) {
   const votingStatus =
     proposal.status === "OPEN"
-      ? "Voting is open."
-      : `Voting closed. Result: **${proposal.status}**`;
+      ? "ההצבעה פתוחה."
+      : `ההצבעה נסגרה. תוצאה: **${proposal.status === "PASSED" ? "עבר" : "נכשל"}**`;
+
+  const statusLabel =
+    proposal.status === "OPEN"
+      ? "פתוח"
+      : proposal.status === "PASSED"
+        ? "עבר"
+        : "נכשל";
 
   return new EmbedBuilder()
-    .setTitle(`Proposal — ${proposal.action.toUpperCase()} ${proposal.symbol}`)
+    .setTitle(`הצעה — ${proposal.action.toUpperCase()} ${proposal.symbol}`)
     .setDescription(
       [
-        `Proposed by: <@${proposal.proposerDiscordId}>`,
+        `הוצע על ידי: <@${proposal.proposerDiscordId}>`,
         "",
-        `Action: **${proposal.action.toUpperCase()}**`,
-        `Symbol: **${proposal.symbol}**`,
-        `Amount: **$${proposal.amount.toLocaleString()} fake**`,
+        `פעולה: **${proposal.action.toUpperCase()}**`,
+        `סימול: **${proposal.symbol}**`,
+        `סכום: **$${proposal.amount.toLocaleString()} מדומה**`,
         "",
+        `סטטוס: **${statusLabel}**`,
         votingStatus,
         "",
-        `Votes:`,
-        `✅ Yes: **${proposal.counts.yes}**`,
-        `❌ No: **${proposal.counts.no}**`,
-        `🤷 Abstain: **${proposal.counts.abstain}**`,
+        `קולות:`,
+        `✅ בעד: **${proposal.counts.yes}**`,
+        `❌ נגד: **${proposal.counts.no}**`,
+        `🤷 נמנע: **${proposal.counts.abstain}**`,
         ...(proposal.executionSummary
-          ? ["", `Execution: ${proposal.executionSummary}`]
+          ? ["", `ביצוע: ${proposal.executionSummary}`]
           : []),
         "",
-        "_Simulated portfolio. No real trades. Not financial advice._",
+        "_תיק השקעות מדומה. אין עסקאות אמיתיות. לא ייעוץ פיננסי._",
       ].join("\n"),
     );
 }

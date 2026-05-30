@@ -53,7 +53,7 @@ export async function executePassedProposal(proposal: {
   if (proposal.action !== "buy") {
     return {
       executed: false,
-      message: `Execution skipped: ${proposal.action.toUpperCase()} is not implemented yet.`,
+      message: `הביצוע דולג: הפעולה ${proposal.action.toUpperCase()} עדיין לא ממומשת.`,
     };
   }
 
@@ -75,7 +75,7 @@ export async function executePassedProposal(proposal: {
     if (portfolio.cash < proposal.amount) {
       return {
         executed: false as const,
-        message: `Execution failed: insufficient fake cash. Available: $${portfolio.cash.toLocaleString()}.`,
+        message: `הביצוע נכשל: אין מספיק מזומן מדומה. זמין: $${portfolio.cash.toLocaleString()}.`,
       };
     }
 
@@ -137,7 +137,7 @@ export async function executePassedProposal(proposal: {
 
     return {
       executed: true as const,
-      message: `Executed fake BUY: ${quantity.toFixed(4)} ${symbol} at $${price.toLocaleString()}.`,
+      message: `בוצעה קנייה מדומה: ${quantity.toFixed(4)} ${symbol} במחיר $${price.toLocaleString()}.`,
     };
   });
 }
@@ -237,57 +237,59 @@ export function buildPortfolioEmbed(
 
   return new EmbedBuilder()
     .setTitle(
-      guildName ? `${guildName} Portfolio` : `Portfolio — ${snapshot.guildId}`,
+      guildName
+        ? `${guildName} תיק השקעות`
+        : `תיק השקעות — ${snapshot.guildId}`,
     )
     .setDescription(
       [
-        "Simulated portfolio. No real trades. Not financial advice.",
+        "תיק השקעות מדומה. אין עסקאות אמיתיות. לא ייעוץ פיננסי.",
         "",
-        `Cash: **${formatCurrency(snapshot.cash)}**`,
-        `Market value: **${formatCurrency(snapshot.marketValue)}**`,
-        `Total value: **${formatCurrency(snapshot.totalValue)}**`,
-        `P/L vs starting cash: **${formatSignedCurrency(gainLoss)}**`,
+        `מזומן: **${formatCurrency(snapshot.cash)}**`,
+        `שווי שוק: **${formatCurrency(snapshot.marketValue)}**`,
+        `שווי כולל: **${formatCurrency(snapshot.totalValue)}**`,
+        `רווח/הפסד מול ההון ההתחלתי: **${formatSignedCurrency(gainLoss)}**`,
       ].join("\n"),
     )
     .addFields(
       {
-        name: "Positions",
+        name: "פוזיציות",
         value:
           snapshot.positions.length === 0
-            ? "No open positions."
+            ? "אין פוזיציות פתוחות."
             : snapshot.positions
                 .map((position) => {
                   const currentPriceText =
                     position.currentPrice === null
-                      ? "N/A"
+                      ? "לא זמין"
                       : formatCurrency(position.currentPrice);
                   const marketValueText =
                     position.marketValue === null
-                      ? "N/A"
+                      ? "לא זמין"
                       : formatCurrency(position.marketValue);
                   const pnlText =
                     position.unrealizedPnl === null
-                      ? "N/A"
+                      ? "לא זמין"
                       : formatSignedCurrency(position.unrealizedPnl);
 
                   return [
                     `**${position.symbol}**`,
-                    `Qty: ${formatShares(position.quantity)} | Avg: ${formatCurrency(position.avgPrice)} | Now: ${currentPriceText}`,
-                    `Value: ${marketValueText} | P/L: ${pnlText}`,
+                    `כמות: ${formatShares(position.quantity)} | ממוצע: ${formatCurrency(position.avgPrice)} | כעת: ${currentPriceText}`,
+                    `שווי: ${marketValueText} | רווח/הפסד: ${pnlText}`,
                   ].join("\n");
                 })
                 .join("\n\n"),
       },
       {
-        name: "Recent Transactions",
+        name: "עסקאות אחרונות",
         value:
           snapshot.transactions.length === 0
-            ? "No transactions yet."
+            ? "אין עדיין עסקאות."
             : snapshot.transactions
                 .map((transaction) => {
                   return [
                     `**${transaction.action.toUpperCase()} ${transaction.symbol}**`,
-                    `Qty: ${formatShares(transaction.quantity)} | Price: ${formatCurrency(transaction.price)} | Notional: ${formatCurrency(transaction.notional)}`,
+                    `כמות: ${formatShares(transaction.quantity)} | מחיר: ${formatCurrency(transaction.price)} | סכום: ${formatCurrency(transaction.notional)}`,
                   ].join("\n");
                 })
                 .join("\n\n"),
