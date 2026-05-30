@@ -8,6 +8,7 @@ RUN apt-get update \
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+ENV DATABASE_URL="file:/data/dev.db"
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
