@@ -68,6 +68,12 @@ const commands = [
     .setName("morning-proposals")
     .setDescription("Generate and post morning proposals now")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .addBooleanOption((option) =>
+      option
+        .setName("silent")
+        .setDescription("Let me choose one proposal before posting")
+        .setRequired(false),
+    )
     .toJSON(),
 ];
 

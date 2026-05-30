@@ -1,4 +1,10 @@
-import { type Client } from "discord.js";
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+  type Client,
+} from "discord.js";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { env } from "../env.js";
@@ -269,6 +275,56 @@ export async function postMorningProposals(params: {
   }
 
   return created;
+}
+
+export function buildMorningProposalSelectionEmbed(
+  ideas: MorningProposalIdea[],
+) {
+  const lines = ideas.slice(0, 3).flatMap((idea, index) => {
+    const reasoning =
+      normalizeProposalReasoning(idea.reasoning) ?? idea.reasoning;
+
+    return [
+      `אפשרות ${index + 1}: ${idea.symbol} — **${idea.action.toUpperCase()}**`,
+      `סכום: **$${idea.amount.toLocaleString()} מדומה**`,
+      `סיבה: ${reasoning}`,
+      "",
+    ];
+  });
+
+  return new EmbedBuilder()
+    .setTitle("בחר הצעה לפרסום")
+    .setDescription(
+      [
+        "בחר אחת מההצעות הבאות. רק ההצעה שתבחר תישלח לערוץ.",
+        "",
+        ...lines,
+        "_תיק השקעות מדומה. אין עסקאות אמיתיות. לא ייעוץ פיננסי._",
+      ].join("\n"),
+    );
+}
+
+export function buildMorningProposalSelectionButtons(
+  batchId: string,
+  proposalCount: number,
+  disabled = false,
+) {
+  const row = new ActionRowBuilder<ButtonBuilder>();
+
+  for (const index of Array.from(
+    { length: Math.min(3, proposalCount) },
+    (_, value) => value,
+  )) {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`silent-morning:${batchId}:${index}`)
+        .setLabel(String(index + 1))
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(disabled),
+    );
+  }
+
+  return row;
 }
 
 function buildMorningPrompt(

@@ -15,7 +15,16 @@ import {
 } from "./services/portfolioService.js";
 import { getPriceQuote } from "./services/priceService.js";
 import { postProposalToChannel } from "./services/proposalService.js";
-import { runMorningProposalWorkflow } from "./services/morningProposalService.js";
+import {
+  buildMorningProposalSelectionButtons,
+  buildMorningProposalSelectionEmbed,
+  generateMorningProposalIdeas,
+  postMorningProposals,
+} from "./services/morningProposalService.js";
+import {
+  createSilentMorningProposalBatch,
+  selectSilentMorningProposalBatchIdea,
+} from "./services/morningSilentSelectionStore.js";
 import { startMorningProposalWorker } from "./workers/morningProposals.js";
 import { startNightProposalWorker } from "./workers/nightProposals.js";
 import { startCloseExpiredProposalsWorker } from "./workers/closeExpiredProposals.js";
@@ -167,29 +176,69 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         await interaction.deferReply({ ephemeral: true });
 
-        const result = await runMorningProposalWorkflow({
-          client: client as Client<true>,
-          guildId: interaction.guildId,
-          channelId: env.PROPOSALS_CHANNEL_ID,
-          proposerDiscordId: client.user?.id ?? interaction.user.id,
-          runKey: `manual:${interaction.id}`,
-          proposalLimit: 1,
-        });
+        const silent = interaction.options.getBoolean("silent") ?? false;
 
-        if (result.ideas.proposals.length === 0) {
+        if (silent) {
+          const ideas = await generateMorningProposalIdeas(interaction.guildId);
+
+          if (ideas.proposals.length === 0) {
+            await interaction.editReply(
+              ideas.skippedReason
+                ? `לא נוצרו הצעות חדשות. ${ideas.skippedReason}`
+                : "לא נוצרו הצעות חדשות.",
+            );
+
+            return;
+          }
+
+          const batch = createSilentMorningProposalBatch({
+            guildId: interaction.guildId,
+            channelId: env.PROPOSALS_CHANNEL_ID,
+            proposerDiscordId: client.user?.id ?? interaction.user.id,
+            requestedByDiscordId: interaction.user.id,
+            ideas: ideas.proposals,
+          });
+
+          await interaction.editReply({
+            content: "בחר הצעה אחת לפרסום:",
+            embeds: [buildMorningProposalSelectionEmbed(batch.ideas)],
+            components: [
+              buildMorningProposalSelectionButtons(
+                batch.id,
+                batch.ideas.length,
+              ),
+            ],
+          });
+
+          return;
+        }
+
+        const ideas = await generateMorningProposalIdeas(interaction.guildId);
+
+        if (ideas.proposals.length === 0) {
           await interaction.editReply(
-            result.ideas.skippedReason
-              ? `לא נוצרו הצעות חדשות. ${result.ideas.skippedReason}`
+            ideas.skippedReason
+              ? `לא נוצרו הצעות חדשות. ${ideas.skippedReason}`
               : "לא נוצרו הצעות חדשות.",
           );
 
           return;
         }
 
-        const symbols = result.created.map((proposal) => proposal.symbol);
+        const created = await postMorningProposals({
+          client: client as Client<true>,
+          guildId: interaction.guildId,
+          channelId: env.PROPOSALS_CHANNEL_ID,
+          proposerDiscordId: client.user?.id ?? interaction.user.id,
+          runKey: `manual:${interaction.id}`,
+          ideas: ideas.proposals,
+          proposalLimit: 1,
+        });
+
+        const symbols = created.map((proposal) => proposal.symbol);
 
         await interaction.editReply(
-          `נוצרו ופורסמו ${result.created.length} הצעות חדשות ב- <#${env.PROPOSALS_CHANNEL_ID}>: ${symbols.join(", ")}`,
+          `נוצרו ופורסמו ${created.length} הצעות חדשות ב- <#${env.PROPOSALS_CHANNEL_ID}>: ${symbols.join(", ")}`,
         );
 
         return;
@@ -197,9 +246,110 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     if (interaction.isButton()) {
-      const [kind, proposalId, voteRaw] = interaction.customId.split(":");
+      const [kind, first, second] = interaction.customId.split(":");
 
-      if (kind !== "vote") return;
+      if (kind === "silent-morning") {
+        const batchId = first;
+        const selectedIndex = Number(second);
+
+        if (!batchId || Number.isNaN(selectedIndex)) {
+          await interaction.reply({
+            content: "בחירה לא תקינה.",
+            ephemeral: true,
+          });
+
+          return;
+        }
+
+        const selectionResult = selectSilentMorningProposalBatchIdea({
+          batchId,
+          requestedByDiscordId: interaction.user.id,
+          selectedIndex,
+        });
+
+        if (selectionResult.status === "missing") {
+          await interaction.reply({
+            content: "הבחירה הזו פג תוקף או לא קיימת עוד.",
+            ephemeral: true,
+          });
+
+          return;
+        }
+
+        if (selectionResult.status === "forbidden") {
+          await interaction.reply({
+            content: "רק מי שביקש את ההצעה יכול לבחור אותה.",
+            ephemeral: true,
+          });
+
+          return;
+        }
+
+        if (
+          selectionResult.status === "invalid_index" ||
+          selectionResult.status === "already_selected"
+        ) {
+          await interaction.reply({
+            content:
+              selectionResult.status === "already_selected"
+                ? "ההצעה הזו כבר נבחרה."
+                : "בחירה לא תקינה.",
+            ephemeral: true,
+          });
+
+          return;
+        }
+
+        await interaction.deferUpdate();
+
+        const selectedIdea = selectionResult.batch.ideas[selectedIndex];
+
+        if (!selectedIdea) {
+          await interaction.editReply({
+            content: "בחירה לא תקינה.",
+            components: [
+              buildMorningProposalSelectionButtons(
+                selectionResult.batch.id,
+                selectionResult.batch.ideas.length,
+                true,
+              ),
+            ],
+          });
+
+          return;
+        }
+
+        const created = await postMorningProposals({
+          client: client as Client<true>,
+          guildId: selectionResult.batch.guildId,
+          channelId: selectionResult.batch.channelId,
+          proposerDiscordId: selectionResult.batch.proposerDiscordId,
+          runKey: selectionResult.batch.id,
+          ideas: [selectedIdea],
+          proposalLimit: 1,
+        });
+
+        await interaction.editReply({
+          content:
+            created.length > 0
+              ? `ההצעה שנבחרה נשלחה ל- <#${selectionResult.batch.channelId}>`
+              : "לא הצלחנו לפרסם את ההצעה שנבחרה.",
+          embeds: [],
+          components: [
+            buildMorningProposalSelectionButtons(
+              selectionResult.batch.id,
+              selectionResult.batch.ideas.length,
+              true,
+            ),
+          ],
+        });
+
+        return;
+      }
+
+      const [proposalKind, proposalId, voteRaw] = [kind, first, second];
+
+      if (proposalKind !== "vote") return;
 
       if (!proposalId) {
         await interaction.reply({
