@@ -135,6 +135,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           channelId: env.PROPOSALS_CHANNEL_ID,
           proposerDiscordId: client.user?.id ?? interaction.user.id,
           runKey: `manual:${interaction.id}`,
+          proposalLimit: 1,
         });
 
         if (result.ideas.proposals.length === 0) {

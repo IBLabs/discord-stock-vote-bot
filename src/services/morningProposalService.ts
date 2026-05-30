@@ -145,6 +145,7 @@ export async function runMorningProposalWorkflow(params: {
   channelId: string;
   proposerDiscordId: string;
   runKey: string;
+  proposalLimit?: number;
 }) {
   const ideas = await generateMorningProposalIdeas(params.guildId);
 
@@ -155,14 +156,19 @@ export async function runMorningProposalWorkflow(params: {
     };
   }
 
-  const created = await postMorningProposals({
+  const postingParams = {
     client: params.client,
     guildId: params.guildId,
     channelId: params.channelId,
     proposerDiscordId: params.proposerDiscordId,
     runKey: params.runKey,
     ideas: ideas.proposals,
-  });
+    ...(params.proposalLimit === undefined
+      ? {}
+      : { proposalLimit: params.proposalLimit }),
+  };
+
+  const created = await postMorningProposals(postingParams);
 
   return {
     ideas,
@@ -177,10 +183,13 @@ export async function postMorningProposals(params: {
   proposerDiscordId: string;
   runKey: string;
   ideas: MorningProposalIdea[];
+  proposalLimit?: number;
 }) {
   const created: Array<{ id: string; messageId: string; symbol: string }> = [];
 
-  for (const [index, idea] of params.ideas.slice(0, 3).entries()) {
+  const limit = params.proposalLimit ?? 3;
+
+  for (const [index, idea] of params.ideas.slice(0, limit).entries()) {
     const morningProposalKey = `morning-proposals:${params.runKey}:${index}`;
 
     const existing = await prisma.proposal.findUnique({
