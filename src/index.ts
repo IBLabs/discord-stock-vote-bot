@@ -16,6 +16,7 @@ import {
 import { postProposalToChannel } from "./services/proposalService.js";
 import { runMorningProposalWorkflow } from "./services/morningProposalService.js";
 import { startMorningProposalWorker } from "./workers/morningProposals.js";
+import { startNightProposalWorker } from "./workers/nightProposals.js";
 import { startCloseExpiredProposalsWorker } from "./workers/closeExpiredProposals.js";
 
 const client = new Client({
@@ -26,6 +27,7 @@ client.once(Events.ClientReady, (readyClient) => {
   console.log(`Bot is ready as ${readyClient.user.tag}`);
   startCloseExpiredProposalsWorker(readyClient as Client<true>);
   startMorningProposalWorker(readyClient as Client<true>);
+  startNightProposalWorker(readyClient as Client<true>);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
