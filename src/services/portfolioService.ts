@@ -58,7 +58,7 @@ export async function executePassedProposal(proposal: {
   }
 
   const symbol = proposal.symbol.toUpperCase();
-  const price = getCurrentPrice(symbol);
+  const price = await getCurrentPrice(symbol);
   const quantity = proposal.amount / price;
 
   return prisma.$transaction(async (tx) => {
@@ -164,30 +164,32 @@ export async function getPortfolioSnapshot(
     },
   });
 
-  const positionViews = positions.map((position) => {
-    try {
-      const currentPrice = getCurrentPrice(position.symbol);
-      const marketValue = position.quantity * currentPrice;
+  const positionViews = await Promise.all(
+    positions.map(async (position) => {
+      try {
+        const currentPrice = await getCurrentPrice(position.symbol);
+        const marketValue = position.quantity * currentPrice;
 
-      return {
-        symbol: position.symbol,
-        quantity: position.quantity,
-        avgPrice: position.avgPrice,
-        currentPrice,
-        marketValue,
-        unrealizedPnl: marketValue - position.quantity * position.avgPrice,
-      };
-    } catch {
-      return {
-        symbol: position.symbol,
-        quantity: position.quantity,
-        avgPrice: position.avgPrice,
-        currentPrice: null,
-        marketValue: null,
-        unrealizedPnl: null,
-      };
-    }
-  });
+        return {
+          symbol: position.symbol,
+          quantity: position.quantity,
+          avgPrice: position.avgPrice,
+          currentPrice,
+          marketValue,
+          unrealizedPnl: marketValue - position.quantity * position.avgPrice,
+        };
+      } catch {
+        return {
+          symbol: position.symbol,
+          quantity: position.quantity,
+          avgPrice: position.avgPrice,
+          currentPrice: null,
+          marketValue: null,
+          unrealizedPnl: null,
+        };
+      }
+    }),
+  );
 
   const marketValue = positionViews.reduce((total, position) => {
     return total + (position.marketValue ?? 0);

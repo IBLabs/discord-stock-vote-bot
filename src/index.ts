@@ -13,6 +13,7 @@ import {
   buildPortfolioEmbed,
   getPortfolioSnapshot,
 } from "./services/portfolioService.js";
+import { getPriceQuote } from "./services/priceService.js";
 import { postProposalToChannel } from "./services/proposalService.js";
 import { runMorningProposalWorkflow } from "./services/morningProposalService.js";
 import { startMorningProposalWorker } from "./workers/morningProposals.js";
@@ -115,6 +116,40 @@ client.on(Events.InteractionCreate, async (interaction) => {
           embeds: [embed],
           ephemeral: true,
         });
+
+        return;
+      }
+
+      if (interaction.commandName === "price") {
+        const symbol = interaction.options
+          .getString("symbol", true)
+          .trim()
+          .toUpperCase();
+
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+          const quote = await getPriceQuote(symbol);
+          const source = quote.source === "finnhub" ? "Finnhub" : "מחיר מדומה";
+          const change =
+            quote.change === null || quote.percentChange === null
+              ? "לא זמין"
+              : `${formatSignedCurrency(quote.change)} (${formatSignedPercent(
+                  quote.percentChange,
+                )})`;
+
+          await interaction.editReply(
+            [
+              `מחיר עבור **${quote.symbol}**: **${formatCurrency(quote.price)}**`,
+              `שינוי יומי: **${change}**`,
+              `מקור: **${source}**`,
+            ].join("\n"),
+          );
+        } catch {
+          await interaction.editReply(
+            `לא הצלחתי למצוא מחיר עבור **${symbol}**.`,
+          );
+        }
 
         return;
       }
@@ -264,5 +299,24 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   }
 });
+
+function formatCurrency(value: number) {
+  return `$${value.toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function formatSignedCurrency(value: number) {
+  const formatted = formatCurrency(Math.abs(value));
+  return value >= 0 ? `+${formatted}` : `-${formatted}`;
+}
+
+function formatSignedPercent(value: number) {
+  const formatted = `${Math.abs(value).toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  })}%`;
+
+  return value >= 0 ? `+${formatted}` : `-${formatted}`;
+}
 
 await client.login(env.DISCORD_TOKEN);

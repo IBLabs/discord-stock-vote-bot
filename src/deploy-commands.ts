@@ -48,6 +48,17 @@ const commands = [
     .toJSON(),
 
   new SlashCommandBuilder()
+    .setName("price")
+    .setDescription("Get the current price for a stock symbol")
+    .addStringOption((option) =>
+      option
+        .setName("symbol")
+        .setDescription("Stock symbol, for example AAPL")
+        .setRequired(true),
+    )
+    .toJSON(),
+
+  new SlashCommandBuilder()
     .setName("morning-proposals")
     .setDescription("Generate and post morning proposals now")
     .toJSON(),
