@@ -33,6 +33,13 @@ const commands = [
         .setRequired(true)
         .setMinValue(1),
     )
+    .addStringOption((option) =>
+      option
+        .setName("reasoning")
+        .setDescription("Optional short reason for this proposal")
+        .setRequired(false)
+        .setMaxLength(300),
+    )
     .toJSON(),
 
   new SlashCommandBuilder()

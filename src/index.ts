@@ -1,18 +1,20 @@
-import { ChannelType, Client, Events, GatewayIntentBits } from "discord.js";
+import { Client, Events, GatewayIntentBits } from "discord.js";
 import { prisma } from "./db.js";
 import { env } from "./env.js";
 import {
   buildProposalEmbed,
-  buildVoteButtons,
   emptyVoteCounts,
   getVoteCounts,
   isVoteValue,
+  normalizeProposalReasoning,
   type ProposalView,
 } from "./proposals.js";
 import {
   buildPortfolioEmbed,
   getPortfolioSnapshot,
 } from "./services/portfolioService.js";
+import { postProposalToChannel } from "./services/proposalService.js";
+import { startMorningProposalWorker } from "./workers/morningProposals.js";
 import { startCloseExpiredProposalsWorker } from "./workers/closeExpiredProposals.js";
 
 const client = new Client({
@@ -21,7 +23,8 @@ const client = new Client({
 
 client.once(Events.ClientReady, (readyClient) => {
   console.log(`Bot is ready as ${readyClient.user.tag}`);
-  startCloseExpiredProposalsWorker(readyClient);
+  startCloseExpiredProposalsWorker(readyClient as Client<true>);
+  startMorningProposalWorker(readyClient as Client<true>);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -42,6 +45,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
           .trim()
           .toUpperCase();
         const amount = interaction.options.getNumber("amount", true);
+        const reasoning = normalizeProposalReasoning(
+          interaction.options.getString("reasoning"),
+        );
 
         const closesAt = new Date(Date.now() + 2 * 60 * 1000);
         const proposal = await prisma.proposal.create({
@@ -51,6 +57,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             action,
             symbol,
             amount,
+            reasoning: reasoning ?? null,
             closesAt,
           },
         });
@@ -61,39 +68,22 @@ client.on(Events.InteractionCreate, async (interaction) => {
           symbol,
           amount,
           proposerDiscordId: interaction.user.id,
+          reasoning,
           status: "OPEN",
           counts: emptyVoteCounts(),
         };
 
-        const embed = buildProposalEmbed(proposalView);
-        const row = buildVoteButtons(proposal.id);
-
-        const proposalsChannel = await client.channels.fetch(
+        const posted = await postProposalToChannel(
+          client as Client<true>,
+          proposalView,
           env.PROPOSALS_CHANNEL_ID,
         );
-
-        if (
-          !proposalsChannel ||
-          proposalsChannel.type !== ChannelType.GuildText
-        ) {
-          await interaction.reply({
-            content: "לא הצלחתי למצוא את ערוץ ההצעות.",
-            ephemeral: true,
-          });
-
-          return;
-        }
-
-        const message = await proposalsChannel.send({
-          embeds: [embed],
-          components: [row],
-        });
 
         await prisma.proposal.update({
           where: { id: proposal.id },
           data: {
-            discordChannelId: message.channelId,
-            discordMessageId: message.id,
+            discordChannelId: posted.channelId,
+            discordMessageId: posted.messageId,
           },
         });
 

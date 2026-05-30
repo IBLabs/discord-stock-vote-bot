@@ -5,9 +5,32 @@ import {
   buildVoteButtons,
   decideProposalStatus,
   getVoteCounts,
+  type ProposalView,
   type ProposalStatus,
 } from "../proposals.js";
 import { executePassedProposal } from "./portfolioService.js";
+
+export async function postProposalToChannel(
+  client: Client<true>,
+  proposal: ProposalView,
+  channelId: string,
+) {
+  const channel = await client.channels.fetch(channelId);
+
+  if (!channel || channel.type !== ChannelType.GuildText) {
+    throw new Error("Could not find the proposals channel.");
+  }
+
+  const message = await channel.send({
+    embeds: [buildProposalEmbed(proposal)],
+    components: [buildVoteButtons(proposal.id)],
+  });
+
+  return {
+    channelId: message.channelId,
+    messageId: message.id,
+  };
+}
 
 export async function closeExpiredProposals(client: Client<true>) {
   const expiredProposals = await prisma.proposal.findMany({

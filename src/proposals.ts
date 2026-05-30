@@ -18,6 +18,7 @@ export type ProposalView = {
   symbol: string;
   amount: number;
   proposerDiscordId: string;
+  reasoning?: string | null | undefined;
   status: ProposalStatus;
   counts: VoteCounts;
   executionSummary?: string | undefined;
@@ -61,6 +62,36 @@ export function decideProposalStatus(
   return participation >= 1 && counts.yes > counts.no ? "PASSED" : "FAILED";
 }
 
+export function normalizeProposalReasoning(
+  reasoning: string | null | undefined,
+) {
+  if (!reasoning) return undefined;
+
+  const cleaned = reasoning
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .join("\n")
+    .trim();
+
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
+export function formatProposalReasoningLines(
+  reasoning: string | null | undefined,
+) {
+  const normalized = normalizeProposalReasoning(reasoning);
+
+  if (!normalized) return [];
+
+  const lines = normalized.split("\n").slice(0, 3);
+
+  if (lines.length === 0) return [];
+
+  return [`סיבה: ${lines[0]}`, ...lines.slice(1, 3)];
+}
+
 export function buildProposalEmbed(proposal: ProposalView) {
   const votingStatus =
     proposal.status === "OPEN"
@@ -84,6 +115,8 @@ export function buildProposalEmbed(proposal: ProposalView) {
         `סימול: **${proposal.symbol}**`,
         `סכום: **$${proposal.amount.toLocaleString()} מדומה**`,
         "",
+        ...formatProposalReasoningLines(proposal.reasoning),
+        ...(proposal.reasoning ? [""] : []),
         `סטטוס: **${statusLabel}**`,
         votingStatus,
         "",

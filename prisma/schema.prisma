@@ -13,11 +13,13 @@ datasource db {
 
 model Proposal {
   id                String    @id @default(cuid())
+  morningProposalKey String?   @unique
   guildId           String
   proposerDiscordId String
   action            String
   symbol            String
   amount            Float
+  reasoning         String?
   status            String    @default("OPEN")
   discordChannelId  String?
   discordMessageId  String?
@@ -27,6 +29,18 @@ model Proposal {
 
   votes        Vote[]
   transactions Transaction[]
+}
+
+model ScheduledJobRun {
+  id          String   @id @default(cuid())
+  jobKey      String
+  runKey      String
+  status      String   @default("RUNNING")
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  error       String?
+
+  @@unique([jobKey, runKey])
 }
 
 model Vote {
