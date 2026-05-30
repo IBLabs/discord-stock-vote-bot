@@ -100,8 +100,18 @@ export async function generateMorningProposalIdeas(
     input: [
       {
         role: "system",
-        content:
-          "You create simulated stock proposals for a Discord investment club. Focus on the provided portfolio and recent news. Only return BUY proposals. Write every reasoning in Hebrew only. Keep each reasoning to 3 lines or less. Return only structured output.",
+        content: [
+          "You create simulated stock proposals for a Discord investment club.",
+          "Focus on the provided portfolio and recent news.",
+          "Only return BUY proposals.",
+          "Write every reasoning in Hebrew only.",
+          "Keep each reasoning to 3 lines or less.",
+          "Prefer symbols not already held unless there is a strong new catalyst.",
+          "Do not repeat the same symbol across proposals.",
+          "Diversify across sectors when possible.",
+          "Each idea must have a clear catalyst and a concrete why-now rationale.",
+          "Return only structured output.",
+        ].join(" "),
       },
       {
         role: "user",
@@ -325,6 +335,10 @@ function buildMorningPrompt(
     "Return JSON with 1 to 3 BUY proposals only.",
     "Each proposal must include symbol, action, amount, and a short reasoning in Hebrew no longer than 3 lines.",
     "Keep the amounts realistic and within the available cash.",
+    "Prefer symbols not already held unless there is a strong new catalyst.",
+    "Do not repeat the same symbol across proposals.",
+    "Diversify across sectors when possible.",
+    "Each idea must have a clear catalyst and a concrete why-now rationale.",
     "Use symbols that are relevant to the news and portfolio. Prefer symbols with clear news catalysts.",
     "Do not include markdown or extra commentary.",
   ].join("\n");
