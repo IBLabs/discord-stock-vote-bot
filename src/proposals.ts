@@ -104,19 +104,19 @@ export function buildVoteButtons(proposalId: string, disabled = false) {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`vote:${proposalId}:yes`)
-      .setLabel("Yes")
+      .setLabel("בעד")
       .setStyle(ButtonStyle.Success)
       .setDisabled(disabled),
 
     new ButtonBuilder()
       .setCustomId(`vote:${proposalId}:no`)
-      .setLabel("No")
+      .setLabel("נגד")
       .setStyle(ButtonStyle.Danger)
       .setDisabled(disabled),
 
     new ButtonBuilder()
       .setCustomId(`vote:${proposalId}:abstain`)
-      .setLabel("Abstain")
+      .setLabel("נמנע")
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(disabled),
   );

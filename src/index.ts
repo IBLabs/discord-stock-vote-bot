@@ -29,7 +29,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isChatInputCommand()) {
       if (interaction.commandName === "ping") {
         await interaction.reply({
-          content: "pong",
+          content: "פונג",
           ephemeral: true,
         });
         return;
@@ -77,7 +77,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           proposalsChannel.type !== ChannelType.GuildText
         ) {
           await interaction.reply({
-            content: "Could not find the proposals channel.",
+            content: "לא הצלחתי למצוא את ערוץ ההצעות.",
             ephemeral: true,
           });
 
@@ -98,7 +98,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
 
         await interaction.reply({
-          content: `Proposal posted in <#${env.PROPOSALS_CHANNEL_ID}>`,
+          content: `ההצעה פורסמה ב- <#${env.PROPOSALS_CHANNEL_ID}>`,
           ephemeral: true,
         });
 
@@ -108,7 +108,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (interaction.commandName === "portfolio") {
         if (!interaction.guildId) {
           await interaction.reply({
-            content: "This command can only be used in a server.",
+            content: "אפשר להשתמש בפקודה הזו רק בשרת.",
             ephemeral: true,
           });
 
@@ -134,7 +134,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       if (!proposalId) {
         await interaction.reply({
-          content: "Invalid vote.",
+          content: "הצבעה לא תקינה.",
           ephemeral: true,
         });
 
@@ -143,7 +143,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       if (!isVoteValue(voteRaw)) {
         await interaction.reply({
-          content: "Invalid vote.",
+          content: "הצבעה לא תקינה.",
           ephemeral: true,
         });
 
@@ -156,7 +156,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       if (!proposal) {
         await interaction.reply({
-          content: "Could not find this proposal. The bot may have restarted.",
+          content: "לא הצלחתי למצוא את ההצעה הזו. ייתכן שהבוט הופעל מחדש.",
           ephemeral: true,
         });
 
@@ -165,7 +165,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       if (proposal.status !== "OPEN") {
         await interaction.reply({
-          content: "Voting is closed for this proposal.",
+          content: "ההצבעה להצעה הזו כבר נסגרה.",
           ephemeral: true,
         });
 
@@ -204,7 +204,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       });
 
       await interaction.followUp({
-        content: `Recorded your vote: **${voteRaw}**`,
+        content: `הקול שלך נרשם: **${voteRaw === "yes" ? "בעד" : voteRaw === "no" ? "נגד" : "נמנע"}**`,
         ephemeral: true,
       });
 
@@ -214,16 +214,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
     console.error("Interaction error:", error);
 
     if (interaction.isRepliable()) {
-      const message = "Something went wrong.";
+      const localizedMessage = "משהו השתבש.";
 
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp({
-          content: message,
+          content: localizedMessage,
           ephemeral: true,
         });
       } else {
         await interaction.reply({
-          content: message,
+          content: localizedMessage,
           ephemeral: true,
         });
       }
