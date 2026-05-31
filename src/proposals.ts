@@ -101,6 +101,7 @@ export function buildProposalEmbed(proposal: ProposalView) {
   const closesAtUnixSeconds = Math.floor(proposal.closesAt.getTime() / 1000);
   const timer = `🕒 נסגר <t:${closesAtUnixSeconds}:R>`;
   const votes = `✅ ${proposal.counts.yes}   ❌ ${proposal.counts.no}   🤷 ${proposal.counts.abstain}`;
+  const proposalId = `ID: \`${proposal.id}\``;
 
   return new EmbedBuilder()
     .setTitle(`<@${proposal.proposerDiscordId}>`)
@@ -119,6 +120,7 @@ export function buildProposalEmbed(proposal: ProposalView) {
         "_תיק השקעות מדומה. אין עסקאות אמיתיות. לא ייעוץ פיננסי._",
         "",
         timer,
+        proposalId,
       ].join("\n"),
     );
 }

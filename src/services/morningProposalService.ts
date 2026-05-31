@@ -13,6 +13,7 @@ import { getMorningNewsDigest } from "./newsService.js";
 import { getOpenAIClient } from "./openaiService.js";
 import { getPortfolioSnapshot } from "./portfolioService.js";
 import { postProposalToChannel } from "./proposalService.js";
+import { getProposalClosesAt } from "./proposalTiming.js";
 
 const morningProposalSchema = z.object({
   proposals: z
@@ -207,6 +208,7 @@ export async function postMorningProposals(params: {
 
   for (const [index, idea] of params.ideas.slice(0, limit).entries()) {
     const morningProposalKey = `morning-proposals:${params.runKey}:${index}`;
+    const closesAt = getProposalClosesAt();
 
     const existing = await prisma.proposal.findUnique({
       where: { morningProposalKey },
@@ -227,7 +229,7 @@ export async function postMorningProposals(params: {
             amount: idea.amount,
             reasoning: normalizeProposalReasoning(idea.reasoning) ?? null,
             morningProposalKey,
-            closesAt: new Date(Date.now() + 2 * 60 * 1000),
+            closesAt,
           },
         })
       : await prisma.proposal.create({
@@ -239,7 +241,7 @@ export async function postMorningProposals(params: {
             amount: idea.amount,
             reasoning: normalizeProposalReasoning(idea.reasoning) ?? null,
             morningProposalKey,
-            closesAt: new Date(Date.now() + 2 * 60 * 1000),
+            closesAt,
           },
         });
 

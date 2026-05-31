@@ -15,6 +15,7 @@ import {
 } from "./services/portfolioService.js";
 import { getPriceQuote } from "./services/priceService.js";
 import { postProposalToChannel } from "./services/proposalService.js";
+import { getProposalClosesAt } from "./services/proposalTiming.js";
 import {
   buildMorningProposalSelectionButtons,
   buildMorningProposalSelectionEmbed,
@@ -62,7 +63,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           interaction.options.getString("reasoning"),
         );
 
-        const closesAt = new Date(Date.now() + 2 * 60 * 1000);
+        const closesAt = getProposalClosesAt();
         const proposal = await prisma.proposal.create({
           data: {
             guildId: interaction.guildId ?? env.DISCORD_GUILD_ID,
