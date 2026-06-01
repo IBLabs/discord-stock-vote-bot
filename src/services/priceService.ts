@@ -18,6 +18,12 @@ type FinnhubQuoteResponse = {
   pc?: number;
 };
 
+type FinnhubCandleResponse = {
+  c?: number[];
+  s?: string;
+  t?: number[];
+};
+
 export type PriceQuote = {
   symbol: string;
   price: number;
@@ -25,6 +31,16 @@ export type PriceQuote = {
   change: number | null;
   percentChange: number | null;
   previousClose: number | null;
+  fetchedAt: Date;
+};
+
+export type PriceTrend = {
+  symbol: string;
+  startPrice: number;
+  endPrice: number;
+  absoluteChange: number;
+  percentChange: number;
+  periodDays: number;
   fetchedAt: Date;
 };
 
@@ -61,6 +77,57 @@ export async function getPriceQuote(symbol: string): Promise<PriceQuote> {
   });
 
   return quote;
+}
+
+export async function getThirtyDayPriceTrend(
+  symbol: string,
+): Promise<PriceTrend | null> {
+  if (!env.FINNHUB_API_KEY) return null;
+
+  try {
+    const url = new URL("https://finnhub.io/api/v1/stock/candle");
+    url.searchParams.set("symbol", symbol.trim().toUpperCase());
+    url.searchParams.set("resolution", "D");
+    url.searchParams.set(
+      "from",
+      Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000).toString(),
+    );
+    url.searchParams.set("to", Math.floor(Date.now() / 1000).toString());
+    url.searchParams.set("token", env.FINNHUB_API_KEY);
+
+    const response = await fetch(url);
+
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as FinnhubCandleResponse;
+
+    if (data.s !== "ok" || !Array.isArray(data.c) || data.c.length < 2) {
+      return null;
+    }
+
+    const startPrice = data.c[0];
+    const endPrice = data.c[data.c.length - 1];
+
+    if (typeof startPrice !== "number" || typeof endPrice !== "number") {
+      return null;
+    }
+
+    const absoluteChange = endPrice - startPrice;
+    const percentChange =
+      startPrice === 0 ? 0 : (absoluteChange / startPrice) * 100;
+
+    return {
+      symbol: symbol.trim().toUpperCase(),
+      startPrice,
+      endPrice,
+      absoluteChange,
+      percentChange,
+      periodDays: 30,
+      fetchedAt: new Date(),
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function getFinnhubQuote(symbol: string): Promise<PriceQuote | null> {

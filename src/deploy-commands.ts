@@ -23,6 +23,12 @@ const commands = [
         .setRequired(true)
         .setMaxLength(1000),
     )
+    .addBooleanOption((option) =>
+      option
+        .setName("analyze")
+        .setDescription("Add an AI stock analysis to the proposal")
+        .setRequired(false),
+    )
     .toJSON(),
 
   new SlashCommandBuilder()

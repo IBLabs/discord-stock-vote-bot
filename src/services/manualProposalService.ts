@@ -9,11 +9,12 @@ import { env } from "../env.js";
 import {
   buildProposalEmbed,
   emptyVoteCounts,
+  normalizeProposalAnalysis,
   normalizeProposalReasoning,
   type ProposalView,
 } from "../proposals.js";
 import { getOpenAIClient } from "./openaiService.js";
-import { getPriceQuote } from "./priceService.js";
+import { getPriceQuote, getThirtyDayPriceTrend } from "./priceService.js";
 import { getProposalClosesAt } from "./proposalTiming.js";
 
 const manualProposalSchema = z.object({
@@ -29,6 +30,7 @@ export type ManualProposalIdea = {
   symbol: string;
   amount: number;
   reasoning?: string | undefined;
+  analysis?: string | undefined;
 };
 
 export type PendingManualProposal = {
@@ -65,12 +67,14 @@ const PENDING_MANUAL_PROPOSAL_TTL_MS = 15 * 60 * 1000;
 
 export async function generateManualProposalIdea(
   freeText: string,
+  analyze = false,
 ): Promise<
   | { status: "created"; idea: ManualProposalIdea }
   | { status: "missing_openai" }
   | { status: "invalid_model_output" }
   | { status: "missing_amount" }
   | { status: "missing_price"; symbol: string }
+  | { status: "analysis_failed" }
 > {
   const openai = getOpenAIClient();
 
@@ -120,6 +124,18 @@ export async function generateManualProposalIdea(
       return { status: "missing_price", symbol };
     }
 
+    let analysis: string | undefined;
+
+    if (analyze) {
+      const analysisResult = await generateManualProposalAnalysis(symbol);
+
+      if (analysisResult.status !== "created") {
+        return { status: "analysis_failed" };
+      }
+
+      analysis = analysisResult.analysis;
+    }
+
     return {
       status: "created",
       idea: {
@@ -127,6 +143,7 @@ export async function generateManualProposalIdea(
         symbol,
         amount: amount.amount,
         reasoning: normalizeProposalReasoning(parsed.reasoning),
+        analysis,
       },
     };
   } catch {
@@ -209,6 +226,7 @@ export function buildManualProposalPreviewEmbed(params: {
     amount: params.idea.amount,
     proposerDiscordId: params.proposerDiscordId,
     reasoning: params.idea.reasoning,
+    analysis: params.idea.analysis,
     closesAt: getProposalClosesAt(),
     status: "OPEN",
     counts: emptyVoteCounts(),
@@ -251,6 +269,7 @@ export function buildManualProposalView(params: {
     amount: params.idea.amount,
     proposerDiscordId: params.proposerDiscordId,
     reasoning: params.idea.reasoning,
+    analysis: params.idea.analysis,
     closesAt: params.closesAt,
     status: "OPEN",
     counts: emptyVoteCounts(),
@@ -306,4 +325,83 @@ function cleanupExpiredPendingManualProposals() {
 
 function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+async function generateManualProposalAnalysis(
+  symbol: string,
+): Promise<{ status: "created"; analysis: string } | { status: "failed" }> {
+  const openai = getOpenAIClient();
+
+  if (!openai) {
+    return { status: "failed" };
+  }
+
+  const [priceQuote, priceTrend] = await Promise.all([
+    getPriceQuote(symbol).catch(() => null),
+    getThirtyDayPriceTrend(symbol),
+  ]);
+
+  const response = await openai.responses.create({
+    model: env.OPENAI_MODEL,
+    input: [
+      {
+        role: "system",
+        content: [
+          "Act like a senior Wall Street equity research analyst.",
+          "Write the analysis in Hebrew only.",
+          "Explain shortly in simple terms but with professional insights.",
+          "Do not use markdown tables.",
+          "Keep it concise enough for a Discord embed.",
+        ].join(" "),
+      },
+      {
+        role: "user",
+        content: [
+          `Analyze the stock: ${symbol}.`,
+          "",
+          priceQuote
+            ? `Current price: $${priceQuote.price.toLocaleString(undefined, {
+                maximumFractionDigits: 2,
+              })}.`
+            : "Current price: unavailable.",
+          priceTrend
+            ? `30-day price change: ${formatSignedNumber(priceTrend.absoluteChange)} (${formatSignedPercent(priceTrend.percentChange)}). Start: $${priceTrend.startPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}, end: $${priceTrend.endPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}.`
+            : "30-day price change: unavailable, note that clearly.",
+          "",
+          "Include:",
+          "• Business model and revenue streams",
+          "• company and product overview",
+          "• Competitive advantages (moat)",
+          "• Industry trends",
+          "• Financial health (revenue growth, margins, debt)",
+          "• Key risks",
+          "• describe the stock price change over the last 30 days",
+          "",
+          "Explain shortly in simple terms but with professional insights.",
+        ].join("\n"),
+      },
+    ],
+  });
+
+  if (!response.output_text) {
+    return { status: "failed" };
+  }
+
+  const analysis = normalizeProposalAnalysis(response.output_text);
+
+  if (!analysis) {
+    return { status: "failed" };
+  }
+
+  return { status: "created", analysis };
+}
+
+function formatSignedNumber(value: number) {
+  return value >= 0 ? `+${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function formatSignedPercent(value: number) {
+  return value >= 0
+    ? `+${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`
+    : `${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`;
 }

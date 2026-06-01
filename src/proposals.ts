@@ -19,6 +19,7 @@ export type ProposalView = {
   amount: number;
   proposerDiscordId: string;
   reasoning?: string | null | undefined;
+  analysis?: string | null | undefined;
   closesAt: Date;
   status: ProposalStatus;
   counts: VoteCounts;
@@ -91,6 +92,33 @@ export function formatProposalReasoningLines(
   return ["סיבה", compact];
 }
 
+export function normalizeProposalAnalysis(
+  analysis: string | null | undefined,
+) {
+  if (!analysis) return undefined;
+
+  const cleaned = analysis
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 12)
+    .join("\n")
+    .trim()
+    .slice(0, 1800);
+
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
+export function formatProposalAnalysisLines(
+  analysis: string | null | undefined,
+) {
+  const normalized = normalizeProposalAnalysis(analysis);
+
+  if (!normalized) return [];
+
+  return ["ניתוח", normalized];
+}
+
 export function buildProposalEmbed(proposal: ProposalView) {
   const votingStatus =
     proposal.status === "OPEN"
@@ -111,6 +139,8 @@ export function buildProposalEmbed(proposal: ProposalView) {
         "",
         ...formatProposalReasoningLines(proposal.reasoning),
         ...(proposal.reasoning ? [""] : []),
+        ...formatProposalAnalysisLines(proposal.analysis),
+        ...(proposal.analysis ? [""] : []),
         ...(votingStatus ? [votingStatus, ""] : []),
         votes,
         ...(proposal.executionSummary
@@ -143,6 +173,7 @@ export function buildProposalHistoryEmbed(proposal: ProposalView) {
         `סכום: **$${proposal.amount.toLocaleString()}**`,
         `סטטוס: **${statusText}**`,
         ...(proposal.reasoning ? ["", `סיבה: ${proposal.reasoning.replace(/\s+/g, " ")}`] : []),
+        ...(proposal.analysis ? ["", `ניתוח:\n${normalizeProposalAnalysis(proposal.analysis)}`] : []),
         ...executionLines,
         "",
         `נסגר <t:${closesAtUnixSeconds}:R>`,

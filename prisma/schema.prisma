@@ -20,6 +20,7 @@ model Proposal {
   symbol            String
   amount            Float
   reasoning         String?
+  analysis          String?
   status            String    @default("OPEN")
   discordChannelId  String?
   discordMessageId  String?

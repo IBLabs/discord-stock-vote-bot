@@ -62,18 +62,18 @@ export async function closeExpiredProposals(client: Client<true>) {
 
     if (updateResult.count === 0) continue;
 
-    const executionSummary =
+    const executionResult =
       nextStatus === "PASSED"
-        ? (
-            await executePassedProposal({
-              id: proposal.id,
-              guildId: proposal.guildId,
-              action: proposal.action,
-              symbol: proposal.symbol,
-              amount: proposal.amount,
-            })
-          ).message
-        : undefined;
+        ? await executePassedProposal({
+            id: proposal.id,
+            guildId: proposal.guildId,
+            action: proposal.action,
+            symbol: proposal.symbol,
+            amount: proposal.amount,
+          })
+        : null;
+
+    const executionSummary = executionResult?.message;
 
     if (nextStatus === "PASSED") {
       await postProposalHistory(
@@ -85,6 +85,7 @@ export async function closeExpiredProposals(client: Client<true>) {
           amount: proposal.amount,
           proposerDiscordId: proposal.proposerDiscordId,
           reasoning: proposal.reasoning,
+          analysis: proposal.analysis,
           closesAt: proposal.closesAt,
           status: nextStatus,
           counts,
@@ -100,6 +101,7 @@ export async function closeExpiredProposals(client: Client<true>) {
       amount: proposal.amount,
       proposerDiscordId: proposal.proposerDiscordId,
       reasoning: proposal.reasoning,
+      analysis: proposal.analysis,
       closesAt: proposal.closesAt,
       status: nextStatus,
       counts,
@@ -119,6 +121,7 @@ async function updateProposalMessage(
     amount: number;
     proposerDiscordId: string;
     reasoning: string | null;
+    analysis: string | null;
     closesAt: Date;
     status: Exclude<ProposalStatus, "OPEN">;
     counts: Awaited<ReturnType<typeof getVoteCounts>>;
@@ -144,6 +147,7 @@ async function updateProposalMessage(
         amount: proposal.amount,
         proposerDiscordId: proposal.proposerDiscordId,
         reasoning: proposal.reasoning,
+        analysis: proposal.analysis,
         closesAt: proposal.closesAt,
         status: proposal.status,
         counts: proposal.counts,

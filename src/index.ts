@@ -85,6 +85,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
 
         const text = interaction.options.getString("text", true).trim();
+        const analyze = interaction.options.getBoolean("analyze") ?? false;
 
         if (text.length === 0) {
           await interaction.reply({
@@ -97,7 +98,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         await interaction.deferReply({ ephemeral: true });
 
-        const generated = await generateManualProposalIdea(text);
+        const generated = await generateManualProposalIdea(text, analyze);
 
         if (generated.status !== "created") {
           const message =
@@ -107,6 +108,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 ? "לא הצלחתי להבין מה סכום ההצעה או כמה יחידות לקנות."
                 : generated.status === "missing_price"
                   ? `לא הצלחתי למצוא מחיר עבור **${generated.symbol}** כדי להמיר יחידות לסכום.`
+                  : generated.status === "analysis_failed"
+                    ? "הצלחתי לבנות את ההצעה, אבל כשלתי בשלב הניתוח."
                   : "לא הצלחתי להפוך את הטקסט להצעה תקינה.";
 
           await interaction.editReply(message);
@@ -350,6 +353,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             symbol: approvalResult.pending.idea.symbol,
             amount: approvalResult.pending.idea.amount,
             reasoning: approvalResult.pending.idea.reasoning ?? null,
+            analysis: approvalResult.pending.idea.analysis ?? null,
             closesAt,
           },
         });
