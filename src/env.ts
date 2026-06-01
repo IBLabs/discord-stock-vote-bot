@@ -6,6 +6,7 @@ const envSchema = z.object({
   DISCORD_CLIENT_ID: z.string().min(1),
   DISCORD_GUILD_ID: z.string().min(1),
   PROPOSALS_CHANNEL_ID: z.string().min(1),
+  HISTORY_CHANNEL_ID: z.string().min(1).optional(),
   DATABASE_URL: z.string().min(1),
   FINNHUB_API_KEY: z.string().min(1).optional(),
   OPENAI_API_KEY: z.string().min(1).optional(),

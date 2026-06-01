@@ -1,7 +1,9 @@
 import { ChannelType, type Client } from "discord.js";
 import { prisma } from "../db.js";
+import { env } from "../env.js";
 import {
   buildProposalEmbed,
+  buildProposalHistoryEmbed,
   buildVoteButtons,
   decideProposalStatus,
   getVoteCounts,
@@ -73,6 +75,24 @@ export async function closeExpiredProposals(client: Client<true>) {
           ).message
         : undefined;
 
+    if (nextStatus === "PASSED") {
+      await postProposalHistory(
+        client,
+        {
+          id: proposal.id,
+          action: proposal.action,
+          symbol: proposal.symbol,
+          amount: proposal.amount,
+          proposerDiscordId: proposal.proposerDiscordId,
+          reasoning: proposal.reasoning,
+          closesAt: proposal.closesAt,
+          status: nextStatus,
+          counts,
+          executionSummary,
+        },
+      );
+    }
+
     await updateProposalMessage(client, {
       id: proposal.id,
       action: proposal.action,
@@ -131,5 +151,20 @@ async function updateProposalMessage(
       }),
     ],
     components: [buildVoteButtons(proposal.id, true)],
+  });
+}
+
+async function postProposalHistory(
+  client: Client<true>,
+  proposal: ProposalView,
+) {
+  if (!env.HISTORY_CHANNEL_ID) return;
+
+  const channel = await client.channels.fetch(env.HISTORY_CHANNEL_ID);
+
+  if (!channel || channel.type !== ChannelType.GuildText) return;
+
+  await channel.send({
+    embeds: [buildProposalHistoryEmbed(proposal)],
   });
 }

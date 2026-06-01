@@ -125,6 +125,32 @@ export function buildProposalEmbed(proposal: ProposalView) {
     );
 }
 
+export function buildProposalHistoryEmbed(proposal: ProposalView) {
+  const closesAtUnixSeconds = Math.floor(proposal.closesAt.getTime() / 1000);
+  const statusText =
+    proposal.status === "PASSED" ? "בוצע" : proposal.status === "FAILED" ? "נכשל" : "פתוח";
+  const executionLines = proposal.executionSummary
+    ? ["", `ביצוע: ${proposal.executionSummary}`]
+    : [];
+
+  return new EmbedBuilder()
+    .setTitle("תיעוד ביצוע הצעה")
+    .setDescription(
+      [
+        `מציע: <@${proposal.proposerDiscordId}>`,
+        `פעולה: **${proposal.action.toUpperCase()}**`,
+        `נכס: **${proposal.symbol}**`,
+        `סכום: **$${proposal.amount.toLocaleString()}**`,
+        `סטטוס: **${statusText}**`,
+        ...(proposal.reasoning ? ["", `סיבה: ${proposal.reasoning.replace(/\s+/g, " ")}`] : []),
+        ...executionLines,
+        "",
+        `נסגר <t:${closesAtUnixSeconds}:R>`,
+        `ID: \`${proposal.id}\``,
+      ].join("\n"),
+    );
+}
+
 export function buildVoteButtons(proposalId: string, disabled = false) {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
