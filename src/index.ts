@@ -1,13 +1,15 @@
-import { Client, Events, GatewayIntentBits } from "discord.js";
+import {
+  Client,
+  Events,
+  GatewayIntentBits,
+  PermissionFlagsBits,
+} from "discord.js";
 import { prisma } from "./db.js";
 import { env } from "./env.js";
 import {
   buildProposalEmbed,
-  emptyVoteCounts,
   getVoteCounts,
   isVoteValue,
-  normalizeProposalReasoning,
-  type ProposalView,
 } from "./proposals.js";
 import {
   buildPortfolioEmbed,
@@ -26,6 +28,15 @@ import {
   createSilentMorningProposalBatch,
   selectSilentMorningProposalBatchIdea,
 } from "./services/morningSilentSelectionStore.js";
+import {
+  buildManualProposalApprovalButtons,
+  buildManualProposalPreviewEmbed,
+  buildManualProposalView,
+  consumePendingManualProposal,
+  createPendingManualProposal,
+  discardPendingManualProposal,
+  generateManualProposalIdea,
+} from "./services/manualProposalService.js";
 import { startMorningProposalWorker } from "./workers/morningProposals.js";
 import { startNightProposalWorker } from "./workers/nightProposals.js";
 import { startCloseExpiredProposalsWorker } from "./workers/closeExpiredProposals.js";
@@ -53,58 +64,73 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
 
       if (interaction.commandName === "propose") {
-        const action = interaction.options.getString("action", true);
-        const symbol = interaction.options
-          .getString("symbol", true)
-          .trim()
-          .toUpperCase();
-        const amount = interaction.options.getNumber("amount", true);
-        const reasoning = normalizeProposalReasoning(
-          interaction.options.getString("reasoning"),
-        );
+        if (!interaction.guildId) {
+          await interaction.reply({
+            content: "אפשר להשתמש בפקודה הזו רק בשרת.",
+            ephemeral: true,
+          });
 
-        const closesAt = getProposalClosesAt();
-        const proposal = await prisma.proposal.create({
-          data: {
-            guildId: interaction.guildId ?? env.DISCORD_GUILD_ID,
-            proposerDiscordId: interaction.user.id,
-            action,
-            symbol,
-            amount,
-            reasoning: reasoning ?? null,
-            closesAt,
-          },
+          return;
+        }
+
+        if (
+          !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+        ) {
+          await interaction.reply({
+            content: "רק אדמינים יכולים להשתמש בפקודה הזו.",
+            ephemeral: true,
+          });
+
+          return;
+        }
+
+        const text = interaction.options.getString("text", true).trim();
+
+        if (text.length === 0) {
+          await interaction.reply({
+            content: "צריך להזין טקסט להצעה.",
+            ephemeral: true,
+          });
+
+          return;
+        }
+
+        await interaction.deferReply({ ephemeral: true });
+
+        const generated = await generateManualProposalIdea(text);
+
+        if (generated.status !== "created") {
+          const message =
+            generated.status === "missing_openai"
+              ? "אי אפשר ליצור הצעה כרגע: חסר OPENAI_API_KEY."
+              : generated.status === "missing_amount"
+                ? "לא הצלחתי להבין מה סכום ההצעה או כמה יחידות לקנות."
+                : generated.status === "missing_price"
+                  ? `לא הצלחתי למצוא מחיר עבור **${generated.symbol}** כדי להמיר יחידות לסכום.`
+                  : "לא הצלחתי להפוך את הטקסט להצעה תקינה.";
+
+          await interaction.editReply(message);
+
+          return;
+        }
+
+        const pending = createPendingManualProposal({
+          guildId: interaction.guildId,
+          channelId: env.PROPOSALS_CHANNEL_ID,
+          requestedByDiscordId: interaction.user.id,
+          idea: generated.idea,
         });
 
-        const proposalView: ProposalView = {
-          id: proposal.id,
-          action,
-          symbol,
-          amount,
-          proposerDiscordId: interaction.user.id,
-          reasoning,
-          closesAt,
-          status: "OPEN",
-          counts: emptyVoteCounts(),
-        };
-
-        const posted = await postProposalToChannel(
-          client as Client<true>,
-          proposalView,
-          env.PROPOSALS_CHANNEL_ID,
-        );
-
-        await prisma.proposal.update({
-          where: { id: proposal.id },
-          data: {
-            discordChannelId: posted.channelId,
-            discordMessageId: posted.messageId,
-          },
-        });
-
-        await interaction.reply({
-          content: `ההצעה פורסמה ב- <#${env.PROPOSALS_CHANNEL_ID}>`,
-          ephemeral: true,
+        await interaction.editReply({
+          content: `לאשר פרסום ב- <#${env.PROPOSALS_CHANNEL_ID}>?`,
+          embeds: [
+            buildManualProposalPreviewEmbed({
+              pendingId: pending.id,
+              proposerDiscordId: interaction.user.id,
+              idea: pending.idea,
+            }),
+          ],
+          components: [buildManualProposalApprovalButtons(pending.id)],
         });
 
         return;
@@ -248,6 +274,113 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.isButton()) {
       const [kind, first, second] = interaction.customId.split(":");
+
+      if (kind === "manual-proposal") {
+        const pendingId = first;
+        const decision = second;
+
+        if (!pendingId || (decision !== "approve" && decision !== "discard")) {
+          await interaction.reply({
+            content: "אישור לא תקין.",
+            ephemeral: true,
+          });
+
+          return;
+        }
+
+        if (decision === "discard") {
+          const discardResult = discardPendingManualProposal({
+            pendingId,
+            requestedByDiscordId: interaction.user.id,
+          });
+
+          if (discardResult.status === "forbidden") {
+            await interaction.reply({
+              content: "רק מי שיצר את התצוגה המקדימה יכול לבטל אותה.",
+              ephemeral: true,
+            });
+
+            return;
+          }
+
+          await interaction.update({
+            content:
+              discardResult.status === "discarded"
+                ? "ההצעה בוטלה."
+                : "התצוגה המקדימה הזו פגה או לא קיימת עוד.",
+            embeds: [],
+            components: [buildManualProposalApprovalButtons(pendingId, true)],
+          });
+
+          return;
+        }
+
+        const approvalResult = consumePendingManualProposal({
+          pendingId,
+          requestedByDiscordId: interaction.user.id,
+        });
+
+        if (approvalResult.status === "forbidden") {
+          await interaction.reply({
+            content: "רק מי שיצר את התצוגה המקדימה יכול לאשר אותה.",
+            ephemeral: true,
+          });
+
+          return;
+        }
+
+        if (approvalResult.status === "missing") {
+          await interaction.update({
+            content: "התצוגה המקדימה הזו פגה או לא קיימת עוד.",
+            embeds: [],
+            components: [buildManualProposalApprovalButtons(pendingId, true)],
+          });
+
+          return;
+        }
+
+        await interaction.deferUpdate();
+
+        const closesAt = getProposalClosesAt();
+        const proposal = await prisma.proposal.create({
+          data: {
+            guildId: approvalResult.pending.guildId,
+            proposerDiscordId: approvalResult.pending.requestedByDiscordId,
+            action: approvalResult.pending.idea.action,
+            symbol: approvalResult.pending.idea.symbol,
+            amount: approvalResult.pending.idea.amount,
+            reasoning: approvalResult.pending.idea.reasoning ?? null,
+            closesAt,
+          },
+        });
+
+        const posted = await postProposalToChannel(
+          client as Client<true>,
+          buildManualProposalView({
+            id: proposal.id,
+            proposerDiscordId: proposal.proposerDiscordId,
+            idea: approvalResult.pending.idea,
+            closesAt,
+          }),
+          approvalResult.pending.channelId,
+        );
+
+        await prisma.proposal.update({
+          where: { id: proposal.id },
+          data: {
+            discordChannelId: posted.channelId,
+            discordMessageId: posted.messageId,
+          },
+        });
+
+        await interaction.editReply({
+          content: `ההצעה פורסמה ב- <#${approvalResult.pending.channelId}>`,
+          embeds: [],
+          components: [buildManualProposalApprovalButtons(pendingId, true)],
+        });
+
+        return;
+      }
 
       if (kind === "silent-morning") {
         const batchId = first;

@@ -14,37 +14,14 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName("propose")
-    .setDescription("Create a fake stock trade proposal")
+    .setDescription("Create a proposal preview from free text")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((option) =>
       option
-        .setName("action")
-        .setDescription("Buy or sell")
+        .setName("text")
+        .setDescription("Free text proposal, for example: buy 30 units of AAPL")
         .setRequired(true)
-        .addChoices(
-          { name: "Buy", value: "buy" },
-          { name: "Sell", value: "sell" },
-        ),
-    )
-    .addStringOption((option) =>
-      option
-        .setName("symbol")
-        .setDescription("Stock symbol, for example AAPL")
-        .setRequired(true),
-    )
-    .addNumberOption((option) =>
-      option
-        .setName("amount")
-        .setDescription("Fake dollar amount, for example 5000")
-        .setRequired(true)
-        .setMinValue(1),
-    )
-    .addStringOption((option) =>
-      option
-        .setName("reasoning")
-        .setDescription("Optional short reason for this proposal")
-        .setRequired(false)
-        .setMaxLength(300),
+        .setMaxLength(1000),
     )
     .toJSON(),
 
